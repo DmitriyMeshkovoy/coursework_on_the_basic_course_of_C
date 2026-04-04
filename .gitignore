@@ -1,0 +1,12 @@
+*
+
+!.gitignore
+!*.c
+!*.h
+!Makefile
+
+*.o
+*.out
+*.json
+*.idea/
+*~
