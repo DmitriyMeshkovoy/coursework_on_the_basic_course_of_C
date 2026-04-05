@@ -116,4 +116,21 @@ Report* report_all_years_and_all_months (Temperature_data *arr, int size);
 //вывод в консоль статистики
 void print_statistic (const Report *report);
 
+//почистить за собой
+bool free_report(Report *report);
+/////////////////////////////////////////////////////////////////////////////////////////
+//5. утилитные функции для работы с массивом
+//хотел сначала их вынести отдельно (в другой файл .h), но кажется, что будет усложнение.
+//Правильно ли так?
+/////////////////////////////////////////////////////////////////////////////////////////
+
+void print_array(const Temperature_data *arr, int size);
+int add_record(Temperature_data *arr, int *size, int max_size, const Temperature_data *new_record);
+int delete_record(Temperature_data *arr, int *size, int index);
+void sort_by_date(Temperature_data *arr, int size);
+void sort_array_by_date(Temperature_data *arr, int size);
+//следующим этапом
+int load_from_csv(const char *filename, Temperature_data *arr, int max_size);
+int save_to_csv(const char *filename, const Temperature_data *arr, int size);
+
 #endif // TEMP_API_H
