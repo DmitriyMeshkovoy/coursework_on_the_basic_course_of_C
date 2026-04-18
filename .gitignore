@@ -5,6 +5,7 @@
 !*.h
 !.txt
 !*.csv
+!*.pdf
 !Makefile
 
 *.o
