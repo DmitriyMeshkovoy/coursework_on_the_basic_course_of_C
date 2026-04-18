@@ -292,19 +292,3 @@ int save_to_csv(const char *filename, const Temperature_data *arr, int size) {
     // сделать потом
     return 0;
 }
-
-//списка заглушка
-SimpleList* create_simple_list(void) {
-    printf("(Заглушка) Создан список\n");
-    return NULL;
-}
-void free_simple_list(SimpleList *list) {
-    printf("(Заглушка) Список освобождён\n");
-}
-int add_to_simple_list(SimpleList *list, const Temperature_data *record) {
-    printf("(Заглушка) Добавление в список\n");
-    return -1;
-}
-void print_simple_list(const SimpleList *list) {
-    printf("(Заглушка) Печать списка\n");
-}

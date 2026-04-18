@@ -48,17 +48,8 @@ void print_help(char *progname) {
 
 int main(int argc, char *argv[]) {
 
-    // списки (заглушка)
-    SimpleList *demo_list = create_simple_list();
-    if (demo_list) {
-        Temperature_data sample = {2024, 1, 1, 12, 0, 5};
-        add_to_simple_list(demo_list, &sample);
-        print_simple_list(demo_list);
-        free_simple_list(demo_list);
-    }
-    printf("(Основная логика в курсовом проекте будет использовать массив)\n");
 
-/*
+
   const char *filename = NULL;
     const char *report_type = NULL;
     int month = 0;
@@ -172,7 +163,7 @@ int main(int argc, char *argv[]) {
             printf("-p to print data or -t for statistics.\n");
         }
     }
-*/
+
     return 0;
 }
 

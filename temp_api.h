@@ -134,20 +134,4 @@ int load_from_csv(const char *filename, Temperature_data *arr, int max_size);
 int save_to_csv(const char *filename, const Temperature_data *arr, int size);
 
 
-// Список (заглушка)
-typedef struct Node {
-    Temperature_data data;
-    struct Node *next;
-} Node;
-
-typedef struct {
-    Node *head;
-    int size;
-} SimpleList;
-
-SimpleList* create_simple_list(void);
-void free_simple_list(SimpleList *list);
-int add_to_simple_list(SimpleList *list, const Temperature_data *record);
-void print_simple_list(const SimpleList *list);
-
 #endif // TEMP_API_H
