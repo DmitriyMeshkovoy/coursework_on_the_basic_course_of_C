@@ -5,7 +5,7 @@
 /*
  Поддерживаемые ключи:
 -h                     описание (справка)
--f file.csv          загрузить данные из CSV (обязательный)
+-f file.csv            загрузить данные из CSV (обязательный)
 -t <type>              тип отчёта: month, year, month-for-year, year-all-period, full
 -m <month>             номер месяца (1-12) для типа month
 -y <year>              год для типов month, year, month-for-year
@@ -17,22 +17,21 @@
 -f data.csv -p                         только печать
 -f data.csv -s -p                      сортировка + печать
 -f data.csv -t month -y 2026 -m 1      статистика за январь 2026
--f data.csv -t year -y 2026            статистика за 2024 год
+-f data.csv -t year -y 2026            статистика за 2026 год
 -f data.csv -t month-for-year -y 2026  год в разрезе месяцев (заглушка)
 -f data.csv -t year-all-period         все годы (заглушка)
 -f data.csv -t full                    все годы и месяцы (заглушка)
 -h
-TO DO для ясности надо потом поправить наименования функций, чтобы они совпадали с ключами
 */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "temp_api.h"
+#include "temp_functions.h"
 
-#define MAX_RECORDS 10000
+//#define MAX_RECORDS 10000 убрал, т.к. свыше 500 тыс записей на стеке хранить наверное не стоит,
+//хотя на линуксе запускал-работает. Сделал хранение на куче
 
-//Подскажите, правильно ли оставлять такие функции в main или в отдельный все же лучше?
 void print_help(char *progname) {
     printf("Usage: %s [options]\n", progname);
     printf("Options:\n");
@@ -47,10 +46,7 @@ void print_help(char *progname) {
 }
 
 int main(int argc, char *argv[]) {
-
-
-
-  const char *filename = NULL;
+    const char *filename = NULL;
     const char *report_type = NULL;
     int month = 0;
     int year = 0;
@@ -61,13 +57,13 @@ int main(int argc, char *argv[]) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0) {
             show_help = 1;
-        } else if (strcmp(argv[i], "-f") == 0 && i+1 < argc) {
+        } else if (strcmp(argv[i], "-f") == 0 && i + 1 < argc) {
             filename = argv[++i];
-        } else if (strcmp(argv[i], "-t") == 0 && i+1 < argc) {
+        } else if (strcmp(argv[i], "-t") == 0 && i + 1 < argc) {
             report_type = argv[++i];
-        } else if (strcmp(argv[i], "-m") == 0 && i+1 < argc) {
+        } else if (strcmp(argv[i], "-m") == 0 && i + 1 < argc) {
             month = atoi(argv[++i]);
-        } else if (strcmp(argv[i], "-y") == 0 && i+1 < argc) {
+        } else if (strcmp(argv[i], "-y") == 0 && i + 1 < argc) {
             year = atoi(argv[++i]);
         } else if (strcmp(argv[i], "-s") == 0) {
             do_sort = 1;
@@ -90,14 +86,18 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    Temperature_data array[MAX_RECORDS];
-    int size = load_from_csv(filename, array, MAX_RECORDS);
-    if (size <= 0) {
+    // Динамическое выделение памяти для массива записей
+    Temperature_data *array = NULL;
+    int size = 0;
+    if (load_from_csv(filename, &array, &size) <= 0) {
+        fprintf(stderr, "Failed to load data from %s\n", filename);
         return 1;
     }
+    printf("Loaded %d records.\n", size);
 
     if (do_sort) {
         sort_by_date(array, size);
+        printf("Data sorted by date.\n");
     }
 
     if (do_print) {
@@ -106,26 +106,71 @@ int main(int argc, char *argv[]) {
         printf("---------------------------\n");
     }
 
-    // Если тип отчёта не указан, но есть -m или -y — ошибка (требуется -t)
-    if (report_type == NULL && (month != 0 || year != 0)) {
-        return 1;
-    }
-
-    // печать в консоль: статистика в зависимости от типа. Уберу, если не понадобится в дальнейшем
-    //надо будет добавить потом проверки, в том числе и для других функций. доработать перед сдачей К/р.
-    if (report_type != NULL) {
-        if (strcmp(report_type, "month") == 0) {
-            printf("\n--- Statistics for month %d, year %d ---\n", month, year);
-            Report *r = report_by_month(array, size, year, (Month)month);
+    // ------------------------------------------------------------------
+    // Поведение по ТЗ (ключи -h, -f, -m) и расширенные ключи (-t, -y, -s, -p)
+    // Если -t НЕ задан, работаем по ТЗ:
+    //   - если есть -m: выводим статистику только за этот месяц
+    //   - иначе: выводим статистику за все месяцы и за год
+    //   - исключение: если есть -p (и нет -m), статистику не выводим
+    // Если -t задан: используем расширенную логику
+    // ------------------------------------------------------------------
+    if (report_type == NULL) {
+        // Режим строгого ТЗ
+        if (month != 0) {
+            // ключ -m задан
+            if (month < 1 || month > 12) {
+                fprintf(stderr, "Invalid month: %d\n", month);
+                free(array);
+                return 1;
+            }
+            if (size == 0) {
+                printf("No data\n");
+                free(array);
+                return 0;
+            }
+            int data_year = array[0].year; // по ТЗ все данные за один год
+            printf("\n--- Statistics for month %d, year %d ---\n", month, data_year);
+            Report *r = report_by_month(array, size, data_year, (Month) month);
             if (r) {
                 print_statistic(r);
                 free_report(r);
             } else {
                 printf("No data found.\n");
             }
+        } else {
+            // Нет -m и нет -t
+            // Если запрошена печать (даже с сортировкой) и нет -m, статистику не выводим
+            if (do_print) {
+                // только печать (уже выполнена выше), больше ничего не делаем
+                ;
+            } else if (size > 0) {
+                print_full_statistics(array, size);
+            } else {
+                if (!do_print && !do_sort) {
+                    printf("No data. Use -p to print or -t for specific reports.\n");
+                }
+            }
         }
-        else if (strcmp(report_type, "year") == 0) {
+    } else {
+        // Расширенный режим с -t
+        if (strcmp(report_type, "month") == 0) {
+            if (year == 0 || month < 1 || month > 12) {
+                fprintf(stderr, "Error: 'month' requires -y <year> and -m <1-12>\n");
+                free(array);
+                return 1;
+            }
+            printf("\n--- Statistics for month %d, year %d ---\n", month, year);
+            Report *r = report_by_month(array, size, year, (Month) month);
+            if (r) {
+                print_statistic(r);
+                free_report(r);
+            } else {
+                printf("No data found.\n");
+            }
+        } else if (strcmp(report_type, "year") == 0) {
             if (year == 0) {
+                fprintf(stderr, "Error: 'year' requires -y <year>\n");
+                free(array);
                 return 1;
             }
             printf("\n--- Statistics for year %d ---\n", year);
@@ -136,64 +181,23 @@ int main(int argc, char *argv[]) {
             } else {
                 printf("No data found.\n");
             }
-        }
-        else if (strcmp(report_type, "month-for-year") == 0) {
+        } else if (strcmp(report_type, "month-for-year") == 0) {
             printf("\n--- Statistics for year %d (by month) ---\n", year);
             printf("  (not implemented yet)\n");
-            // Report *r = report_by_month_for_the_year(array, size, year);
-        }
-        else if (strcmp(report_type, "year-all-period") == 0) {
+        } else if (strcmp(report_type, "year-all-period") == 0) {
             printf("\n--- Statistics for all years (without month breakdown) ---\n");
             printf("  (not implemented yet)\n");
-            // Report *r = report_by_year_all_period(array, size);
-        }
-        else if (strcmp(report_type, "full") == 0) {
+        } else if (strcmp(report_type, "full") == 0) {
             printf("\n--- Full statistics: all years and months ---\n");
             printf("  (not implemented yet)\n");
-            // Report *r = report_all_years_and_all_months(array, size);
-        }
-        else {
+        } else {
             fprintf(stderr, "Error: unknown report type '%s'\n", report_type);
             print_help(argv[0]);
+            free(array);
             return 1;
-        }
-    } else {
-        // когда нет ни статистики, ни печати, ни сортировки, то напоминание
-        if (!do_print && !do_sort) {
-            printf("-p to print data or -t for statistics.\n");
         }
     }
 
+    free(array);
     return 0;
 }
-
-
-
-
-
-
-
-//old
-/*
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include "temp_api.h"
-
-#define MAX_RECORDS 400
-
-int main(int argc, char *argv[]) {
-    Temperature_data array[MAX_RECORDS];
-    Request request_month;
-    request_month.type = REPORT_BY_MONTH;
-    request_month.array = array;
-    request_month.size = MAX_RECORDS;
-    request_month.year = 2024;
-    request_month.month = JAN;
-
-    Report *report_month = return_statistic(&request_month);
-    print_statistic(report_month);
-
-    return 0;
-}
-*/
